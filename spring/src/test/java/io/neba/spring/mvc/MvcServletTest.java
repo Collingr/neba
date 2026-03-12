@@ -61,8 +61,8 @@ public class MvcServletTest {
     private SlingHttpServletRequest request;
     @Mock
     private SlingHttpServletResponse response;
-    @Mock
-    @SuppressWarnings("unused") // injected into testee
+    @Mock(name = "config")
+    @SuppressWarnings("unused") // injected into GenericServlet.config
     private ServletConfig servletConfig;
     @Mock
     @SuppressWarnings("unused") // injected into testee

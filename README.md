@@ -39,12 +39,33 @@ Consult the documentation or ask a question in the site comments at [https://neb
 
 Building from source
 --------------------
-NEBA uses a [Maven](https://maven.apache.org/) based build. invoking
+NEBA uses a [Maven](https://maven.apache.org/) based build. Invoke
 
     mvn clean install
     
-In the project's root directory will build and install NEBA. We are using [git flow](https://nvie.com/posts/a-successful-git-branching-model/),
-yo you might want to do so on the "develop" branch.
+in the project's root directory to build and install NEBA. **Always build from the project root**—building the `delivery-aem` module in isolation will fail because it depends on the logviewer artifact, which must be built first. If you see "io.neba.neba-logviewer-java8 was not found" (e.g. from a cached resolution failure), run `mvn -U -Pjava8 clean install` from the root to force update and rebuild.
+
+We are using [git flow](https://nvie.com/posts/a-successful-git-branching-model/),
+so you might want to do so on the "develop" branch.
+
+To build with Java 8 (e.g. for logviewer tests), use `mvn -Pjava8 clean verify`. This profile uses Maven toolchains and requires a Java 8 JDK configured in `~/.m2/toolchains.xml`. See `toolchains.xml.example` for the format.
+
+### Build profiles and AEM compatibility
+
+NEBA supports both AEM 6.5 and 6.6 from a single codebase. Use the appropriate Maven profile for your target:
+
+| Profile | Java | AEM | Logviewer | Output |
+|---------|------|-----|-----------|--------|
+| `java8` (default) | 8 | 6.5 | logviewer-java8 | `neba-delivery-aem-*-spring` |
+| `java11` | 11 | 6.5 | logviewer-java11 | `neba-delivery-aem-*-spring` |
+| `java17` | 17 | 6.6 | logviewer-java11 | `neba-delivery-aem-*-spring` |
+| `java21` | 21 | 6.6 | logviewer-java11 | `neba-delivery-aem-*-spring` |
+
+**Examples:**
+- AEM 6.5 on Java 11: `mvn -Pjava11 clean install`
+- AEM 6.6 on Java 17: `mvn -Pjava17 clean install`
+
+The same content package works on both AEM versions. The delivery embeds a Jetty 9.4 stack for the logviewer WebSocket (AEM does not export these packages). On AEM 6.6, `jetty-util-osgi` is started at level 12 so it exports `org.eclipse.jetty.util.annotation` before the other Jetty bundles resolve.
 
 Releasing NEBA
 --------------------

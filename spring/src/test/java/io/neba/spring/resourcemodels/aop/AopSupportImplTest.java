@@ -3,13 +3,10 @@ package io.neba.spring.resourcemodels.aop;
 import org.junit.Test;
 import org.springframework.aop.TargetSource;
 import org.springframework.aop.framework.Advised;
-import org.springframework.cglib.proxy.Enhancer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.springframework.cglib.proxy.NoOp.INSTANCE;
 
 /**
  * @author Olaf Otto
@@ -55,17 +52,11 @@ public class AopSupportImplTest {
     }
 
     private void withAdvisedModel() throws Exception {
-        Enhancer enhancer = new Enhancer();
-        enhancer.setSuperclass(Model.class);
-        enhancer.setCallback(INSTANCE);
-        enhancer.setInterfaces(new Class[]{Advised.class});
-        Object enhanced = spy(enhancer.create());
-        assertThat(enhanced).isNotNull();
-
+        Advised advised = mock(Advised.class);
         TargetSource targetSource = mock(TargetSource.class);
         Model unwrappedBeanInstance = new Model();
-        doReturn(targetSource).when((Advised) enhanced).getTargetSource();
+        doReturn(targetSource).when(advised).getTargetSource();
         doReturn(unwrappedBeanInstance).when(targetSource).getTarget();
-        this.model = enhanced;
+        this.model = advised;
     }
 }

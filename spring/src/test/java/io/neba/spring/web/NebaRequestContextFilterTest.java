@@ -34,6 +34,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
@@ -56,6 +58,53 @@ import static org.springframework.web.context.request.RequestContextHolder.getRe
  */
 @RunWith(MockitoJUnitRunner.class)
 public class NebaRequestContextFilterTest {
+
+    /**
+     * BackgroundHttpServletRequest from sling.bgservlets 1.0.0 was compiled against Servlet 2.5
+     * and lacks getDispatcherType(). This subclass adds it for Servlet 3.1+ compatibility.
+     * Overrides getHeaderNames() to fix Enumeration<?> vs Enumeration<String> incompatibility.
+     */
+    private static final class Servlet31CompatibleBackgroundRequest extends BackgroundHttpServletRequest {
+        Servlet31CompatibleBackgroundRequest(HttpServletRequest delegate) {
+            super(delegate, new String[0]);
+        }
+
+        @Override
+        public javax.servlet.DispatcherType getDispatcherType() {
+            return REQUEST;
+        }
+
+        @Override
+        public Enumeration<String> getHeaderNames() {
+            return Collections.enumeration(Collections.emptyList());
+        }
+
+        @Override
+        public Enumeration<String> getHeaders(String name) {
+            return Collections.enumeration(Collections.emptyList());
+        }
+
+        @Override
+        public Enumeration<Locale> getLocales() {
+            return Collections.enumeration(Collections.emptyList());
+        }
+
+        @Override
+        public java.util.Map<String, String[]> getParameterMap() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public Enumeration<String> getParameterNames() {
+            return Collections.enumeration(Collections.emptyList());
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames() {
+            return Collections.enumeration(Collections.emptyList());
+        }
+    }
+
     private final ExecutorService executorService = newSingleThreadExecutor();
 
     @Mock
@@ -226,10 +275,7 @@ public class NebaRequestContextFilterTest {
     }
 
     private void withBackgroundRequest() {
-        request = mock(BackgroundHttpServletRequest.class);
-        doReturn(REQUEST)
-                .when(request)
-                .getDispatcherType();
+        request = new Servlet31CompatibleBackgroundRequest(request);
     }
 
     private void doFilter() throws ServletException, IOException {

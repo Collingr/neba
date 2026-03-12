@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>io.neba.neba-logviewer</artifactId>
+    <name>NEBA logviewer</name>
+    <packaging>pom</packaging>
+    <description>Logviewer modules: common, java8, java11, and jetty-util-osgi. Jetty discrimination (9.4.54 for AEM 6.5/6.6, 11.x when logviewer-jakarta exists) is defined by root profiles.</description>
+
+    <parent>
+        <groupId>io.neba</groupId>
+        <artifactId>io.neba.neba-parent</artifactId>
+        <version>5.2.4-SNAPSHOT</version>
+    </parent>
+
+    <modules>
+        <module>logviewer-common</module>
+        <module>jetty-util-osgi</module>
+    </modules>
+</project>

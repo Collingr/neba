@@ -19,7 +19,7 @@ package io.neba.core.util;
 import io.neba.api.spi.ResourceModelFactory;
 import io.neba.api.spi.ResourceModelFactory.ContentToModelMappingCallback;
 import io.neba.api.spi.ResourceModelFactory.ModelDefinition;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import java.util.Objects;
 import org.osgi.framework.Bundle;
 
 /**
@@ -59,7 +59,7 @@ public class OsgiModelSource<T> {
         this.factory = factory;
         this.bundleId = bundle.getBundleId();
         this.bundle = bundle;
-        this.hashCode = new HashCodeBuilder().append(this.modelDefinition.getName()).append(bundleId).toHashCode();
+        this.hashCode = Objects.hash(this.modelDefinition.getName(), bundleId);
     }
 
     public T getModel(ContentToModelMappingCallback<T> callback) {

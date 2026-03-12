@@ -29,8 +29,9 @@
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
                 <configuration>
+                    <excludeDependencies>io.neba.neba-api-tld</excludeDependencies>
                     <instructions>
-                        <Include-Resource>{maven-resources}, META-INF/=${project.build.directory}/classes/META-INF/
+                        <Include-Resource>{maven-resources}, META-INF/=-${project.build.directory}/classes/META-INF/
                         </Include-Resource>
                         <Bundle-Name>NEBA API</Bundle-Name>
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>

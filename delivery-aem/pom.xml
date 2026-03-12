@@ -19,6 +19,11 @@
         <spring.artifacts.targetdir>
             ${project.build.directory}/filevault-work-spring/jcr_root/${neba.installation.path}/17
         </spring.artifacts.targetdir>
+        <spring.artifacts.targetdir.nologviewer>
+            ${project.build.directory}/filevault-work-spring-nologviewer/jcr_root/${neba.installation.path}/17
+        </spring.artifacts.targetdir.nologviewer>
+        <!-- Include logviewer (and Jetty stack) in delivery package. Use -Pno-logviewer to exclude. -->
+        <neba.include.logviewer>true</neba.include.logviewer>
     </properties>
 
     <dependencies>
@@ -38,7 +43,16 @@
             <artifactId>io.neba.neba-spring</artifactId>
             <version>${project.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>io.neba.neba-logviewer-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>${logviewer.artifact}</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- External dependencies -->
         <dependency>
             <groupId>org.apache.servicemix.bundles</groupId>
@@ -92,6 +106,47 @@
             <groupId>org.eclipse.gemini.blueprint</groupId>
             <artifactId>gemini-blueprint-extensions</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.neba</groupId>
+            <artifactId>io.neba.jetty-util-osgi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-io</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-http</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-servlet</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>websocket-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>websocket-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>websocket-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>websocket-servlet</artifactId>
+        </dependency>
 
         <!-- build dependencies -->
         <dependency>
@@ -142,6 +197,39 @@
             </resource>
         </resources>
         <plugins>
+            <!-- Ensure main and test sources compile (content-package packaging may not bind compiler) -->
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Ensure test resources are copied (content-package packaging may not bind testResources) -->
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-testResources</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testResources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Omit the binary resources. They are shipped separately -->
             <plugin>
                 <artifactId>maven-source-plugin</artifactId>
@@ -186,6 +274,20 @@
                             <goal>java</goal>
                         </goals>
                         <phase>prepare-package</phase>
+                    </execution>
+                    <execution>
+                        <id>transform-javax-import-versions-nologviewer</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <phase>none</phase>
+                        <configuration>
+                            <arguments>
+                                <argument>${spring.artifacts.sourcedir}</argument>
+                                <argument>${spring.artifacts.targetdir.nologviewer}</argument>
+                                <argument>${jackson.importVersionRange}</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
                 <configuration>
@@ -247,6 +349,60 @@
                                 </description>
                             </properties>
                             <embeddeds>
+                                <!-- Commons-lang3 for NEBA (AEM LTS may not provide 3.20+) -->
+                                <embedded>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-lang3</artifactId>
+                                    <target>${neba.installation.path}/15</target>
+                                </embedded>
+                                <!-- Full Jetty 9.4 stack for logviewer WebSocket (AEM LTS does not export these).
+                                     Start levels enforce dependency order: util(SL12)->io->http->server->servlet->websocket(SL13-14).
+                                     jetty-util-osgi MUST start before other Jetty bundles (AEM 6.6 Felix exports Jetty 11 only). -->
+                                <embedded>
+                                    <groupId>io.neba</groupId>
+                                    <artifactId>io.neba.jetty-util-osgi</artifactId>
+                                    <target>${neba.installation.path}/12</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-io</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-http</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-server</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-servlet</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-common</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-api</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-servlet</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-server</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
                                 <!-- Spring dependencies shall start first at start level 16 -->
                                 <embedded>
                                     <groupId>org.apache.servicemix.bundles</groupId>
@@ -290,6 +446,111 @@
                                 </embedded>
                                 <embedded>
                                     <groupId>${project.groupId}</groupId>
+                                    <artifactId>io.neba.neba-logviewer-common</artifactId>
+                                    <target>${neba.installation.path}/19</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${logviewer.artifact}</artifactId>
+                                    <target>${neba.installation.path}/19</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>io.neba.neba-spring</artifactId>
+                                    <target>${neba.installation.path}/19</target>
+                                </embedded>
+                            </embeddeds>
+                        </configuration>
+                    </execution>
+                </executions>
+                <extensions>true</extensions>
+            </plugin>
+
+            <!-- Second filevault invocation: nologviewer package (runs when -Pno-logviewer). -->
+            <plugin>
+                <groupId>org.apache.jackrabbit</groupId>
+                <artifactId>filevault-package-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>**/*.class</excludes>
+                    <showImportPackageReport>false</showImportPackageReport>
+                    <version>${project.version}</version>
+                    <failOnMissingEmbed>true</failOnMissingEmbed>
+                    <filterSource/>
+                    <filters>
+                        <filter>
+                            <mode>replace</mode>
+                            <root>/apps/neba</root>
+                        </filter>
+                    </filters>
+                    <thumbnailImage>${project.build.directory}/filevault-work/META-INF/vault/definition/thumbnail.png</thumbnailImage>
+                    <validatorsSettings>
+                        <jackrabbit-emptyelements>
+                            <isDisabled>true</isDisabled>
+                        </jackrabbit-emptyelements>
+                    </validatorsSettings>
+                </configuration>
+                <executions>
+                    <!-- Package without logviewer/Jetty: NEBA core starts without waiting on log system. Runs when -Pno-logviewer. -->
+                    <execution>
+                        <id>package-spring-nologviewer</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>generate-metadata</goal>
+                            <goal>package</goal>
+                        </goals>
+                        <configuration>
+                            <packageType>container</packageType>
+                            <finalName>${project.artifactId}-${project.version}-spring</finalName>
+                            <workDirectory>${project.build.directory}/filevault-work-spring-nologviewer</workDirectory>
+                            <name>io.neba.neba-delivery-aem-spring-nologviewer</name>
+                            <properties>
+                                <comment>NEBA with Spring support (no logviewer)</comment>
+                                <description>Packages NEBA core and API bundles along with the NEBA Spring integration
+                                    and the Spring Framework. Excludes logviewer and Jetty for faster startup.</description>
+                            </properties>
+                            <embeddeds>
+                                <embedded>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-lang3</artifactId>
+                                    <target>${neba.installation.path}/15</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.apache.servicemix.bundles</groupId>
+                                    <artifactId>org.apache.servicemix.bundles.aopalliance</artifactId>
+                                    <target>${neba.installation.path}/16</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.gemini.blueprint</groupId>
+                                    <artifactId>gemini-blueprint-core</artifactId>
+                                    <target>${neba.installation.path}/18</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.gemini.blueprint</groupId>
+                                    <artifactId>gemini-blueprint-io</artifactId>
+                                    <target>${neba.installation.path}/18</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.gemini.blueprint</groupId>
+                                    <artifactId>gemini-blueprint-extensions</artifactId>
+                                    <target>${neba.installation.path}/18</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.gemini.blueprint</groupId>
+                                    <artifactId>gemini-blueprint-extender</artifactId>
+                                    <target>${neba.installation.path}/18</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>io.neba.neba-api</artifactId>
+                                    <target>${neba.installation.path}/19</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>io.neba.neba-core</artifactId>
+                                    <target>${neba.installation.path}/19</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
                                     <artifactId>io.neba.neba-spring</artifactId>
                                     <target>${neba.installation.path}/19</target>
                                 </embedded>
@@ -311,6 +572,60 @@
                             <packageType>container</packageType>
                             <workDirectory>${project.build.directory}/filevault-work</workDirectory>
                             <embeddeds>
+                                <!-- Commons-lang3 for NEBA (AEM LTS may not provide 3.20+) -->
+                                <embedded>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-lang3</artifactId>
+                                    <target>${neba.installation.path}/15</target>
+                                </embedded>
+                                <!-- Full Jetty 9.4 stack for logviewer WebSocket (AEM LTS does not export these).
+                                     Start levels enforce dependency order: util(SL12)->io->http->server->servlet->websocket(SL13-14).
+                                     jetty-util-osgi MUST start before other Jetty bundles (AEM 6.6 Felix exports Jetty 11 only). -->
+                                <embedded>
+                                    <groupId>io.neba</groupId>
+                                    <artifactId>io.neba.jetty-util-osgi</artifactId>
+                                    <target>${neba.installation.path}/12</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-io</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-http</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-server</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-servlet</artifactId>
+                                    <target>${neba.installation.path}/13</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-common</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-api</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-servlet</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>org.eclipse.jetty.websocket</groupId>
+                                    <artifactId>websocket-server</artifactId>
+                                    <target>${neba.installation.path}/14</target>
+                                </embedded>
                                 <embedded>
                                     <groupId>${project.groupId}</groupId>
                                     <artifactId>io.neba.neba-api</artifactId>
@@ -319,6 +634,16 @@
                                 <embedded>
                                     <groupId>${project.groupId}</groupId>
                                     <artifactId>io.neba.neba-core</artifactId>
+                                    <target>${neba.installation.path}</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>io.neba.neba-logviewer-common</artifactId>
+                                    <target>${neba.installation.path}</target>
+                                </embedded>
+                                <embedded>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${logviewer.artifact}</artifactId>
                                     <target>${neba.installation.path}</target>
                                 </embedded>
                             </embeddeds>
@@ -355,4 +680,42 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Exclude logviewer and Jetty stack. Use: mvn -Pno-logviewer package -->
+        <profile>
+            <id>no-logviewer</id>
+            <properties>
+                <neba.include.logviewer>false</neba.include.logviewer>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.jackrabbit</groupId>
+                        <artifactId>filevault-package-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-package</id>
+                                <phase>none</phase>
+                            </execution>
+                            <execution>
+                                <id>package-spring-nologviewer</id>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>transform-javax-import-versions-nologviewer</id>
+                                <phase>prepare-package</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -20,6 +20,7 @@ import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.felix.webconsole.AbstractWebConsolePlugin;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,7 @@ public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
 
     private boolean isManagingDecoratedObjectFactory = false;
 
-    @Reference
+    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
     private TailServlet tailServlet;
 
     @Reference
@@ -84,6 +85,9 @@ public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
     @Override
     public void init() throws ServletException {
         super.init();
+        if (this.tailServlet == null) {
+            return;
+        }
         final ClassLoader ccl = currentThread().getContextClassLoader();
         try {
             injectDecoratorObjectFactoryIntoServletContext();
@@ -102,7 +106,9 @@ public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
     public void destroy() {
         super.destroy();
         removeDecoratorObjectFactoryFromServletContext();
-        this.tailServlet.destroy();
+        if (this.tailServlet != null) {
+            this.tailServlet.destroy();
+        }
     }
 
     @SuppressWarnings("unused")
@@ -137,7 +143,11 @@ public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
         String suffix = substringAfter(req.getRequestURI(), req.getServletPath() + "/" + getLabel());
 
         if (!isBlank(suffix) && suffix.startsWith("/tail")) {
-            this.tailServlet.service(req, res);
+            if (this.tailServlet != null) {
+                this.tailServlet.service(req, res);
+            } else {
+                res.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Log tail service not available (no Jetty WebSocket implementation)");
+            }
             return;
         }
 

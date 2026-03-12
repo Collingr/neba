@@ -1,24 +1,21 @@
 /*
   Copyright 2013 the original author or authors.
-  <p>
+
   Licensed under the Apache License, Version 2.0 the "License";
   you may not use this file except in compliance with the License.
   You may obtain a copy of the License at
-  <p>
+
   http://www.apache.org/licenses/LICENSE-2.0
-  <p>
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
  */
-package io.neba.core.logviewer;
+package io.neba.core.logviewer.java11;
 
-import io.neba.core.Eventual;
-import java.io.File;
-import java.io.IOException;
-import java.util.Collection;
+import io.neba.core.logviewer.LogFiles;
 import org.eclipse.jetty.websocket.api.Session;
 import org.junit.After;
 import org.junit.Before;
@@ -26,6 +23,10 @@ import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
 import static java.io.File.createTempFile;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -36,10 +37,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * @author Olaf Otto
+ * Tests for TailSocketJava11 (Java 11 / Jetty 9). Mirrors io.neba.core.logviewer.java8.TailSocketTest.
  */
-public class TailSocketTest extends TailTests implements Eventual {
-    private Collection<File> availableLogFiles;
+public class TailSocketTest extends TailTests {
 
     @Mock
     private LogFiles logFiles;
@@ -48,15 +48,12 @@ public class TailSocketTest extends TailTests implements Eventual {
     private Session session;
 
     @InjectMocks
-    private TailSocket testee;
+    private TailSocketJava11 testee;
 
     @Before
     public void prepareRegisteredLogFile() throws Exception {
         this.availableLogFiles = listFiles(getTestLogfileDirectory(), null, true);
-
-        doReturn(availableLogFiles)
-                .when(this.logFiles)
-                .resolveLogFiles();
+        doReturn(availableLogFiles).when(this.logFiles).resolveLogFiles();
     }
 
     @Before
@@ -67,12 +64,14 @@ public class TailSocketTest extends TailTests implements Eventual {
 
     @After
     public void tearDown() {
-        this.testee.onWebSocketClose(-1, null);
+        if (this.testee != null) {
+            this.testee.onWebSocketClose(-1, null);
+        }
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructorRequiresNonNullLogFiles() {
-        new TailSocket(null);
+        new TailSocketJava11(null);
     }
 
     @Test
@@ -134,12 +133,8 @@ public class TailSocketTest extends TailTests implements Eventual {
 
     @Test(expected = RuntimeException.class)
     public void testHandlingOfIoException() throws Exception {
-        withIoExceptionDuringLogfileResolution();
-        tail("/does/not/exist");
-    }
-
-    private void withIoExceptionDuringLogfileResolution() throws IOException {
         doThrow(new IOException("THIS IS AN EXPECTED TEST EXCEPTION")).when(this.logFiles).resolveLogFiles();
+        tail("/does/not/exist");
     }
 
     private void verifySocketRepliesAsynchronously(String s) {

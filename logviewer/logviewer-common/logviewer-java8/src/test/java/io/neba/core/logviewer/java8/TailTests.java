@@ -1,19 +1,18 @@
 /*
   Copyright 2013 the original author or authors.
-  <p>
+
   Licensed under the Apache License, Version 2.0 the "License";
   you may not use this file except in compliance with the License.
   You may obtain a copy of the License at
-  <p>
+
   http://www.apache.org/licenses/LICENSE-2.0
-  <p>
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
+  See the License for the specific language governing permissions and limitations under the License.
  */
-package io.neba.core.logviewer;
+package io.neba.core.logviewer.java8;
 
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.junit.Before;
@@ -28,11 +27,11 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.Thread.sleep;
-import static java.lang.Thread.yield;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -41,13 +40,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * @author Olaf Otto
+ * Base class for logviewer tests. Mirrors io.neba.core.logviewer.TailTests from develop.
  */
 @RunWith(MockitoJUnitRunner.class)
 public abstract class TailTests {
+
+    Collection<File> availableLogFiles;
+
     private File testLogfileDirectory;
     private StringBuilder receivedText;
-    private Answer<?> recordText;
+    Answer<?> recordText;
 
     @Mock
     private RemoteEndpoint remote;
@@ -56,7 +58,6 @@ public abstract class TailTests {
     public final void setUp() throws Exception {
         URL testLogfileUrl = getClass().getResource("/io/neba/core/logviewer/testlogfiles/");
         this.testLogfileDirectory = new File(testLogfileUrl.getFile());
-
         this.receivedText = new StringBuilder(4096);
 
         this.recordText = invocation -> {
@@ -67,9 +68,7 @@ public abstract class TailTests {
             return null;
         };
 
-        doAnswer(recordText)
-                .when(remote)
-                .sendBytes(any());
+        doAnswer(recordText).when(remote).sendBytes(any());
     }
 
     public File getTestLogfileDirectory() {
@@ -104,7 +103,7 @@ public abstract class TailTests {
     }
 
     public void sleepUpTo(long amount, TimeUnit unit) {
-        yield();
+        Thread.yield();
         try {
             sleep(unit.toMillis(amount));
         } catch (InterruptedException e) {
@@ -112,24 +111,37 @@ public abstract class TailTests {
         }
     }
 
-    public static String normalizeLineBreaks(String s) {
-        return s.replaceAll("[\r\n]+", "\n");
+    public void eventually(Runnable assertion) throws InterruptedException {
+        long max = TimeUnit.SECONDS.toMillis(10);
+        long waited = 0;
+        long interval = 100;
+        AssertionError last = null;
+        while (waited < max) {
+            try {
+                assertion.run();
+                return;
+            } catch (AssertionError e) {
+                last = e;
+                sleep(interval);
+                waited += interval;
+            }
+        }
+        throw new AssertionError("Unable to satisfy within 10 seconds", last);
     }
 
     /**
-     * Executes the callback as soon as {@link RemoteEndpoint#sendBytes(ByteBuffer) the mocked remote receives bytes}.
-     * This allows reacting when {@link Tail} is picking up data from a log file.
-     *
-     * @param c must not be <code>null</code>.
+     * Executes the callback as soon as the mocked remote receives bytes.
+     * Allows reacting when TailRunner is picking up data from a log file.
      */
-    public void uponWriteToRemoteDo(Callable<?> c) throws IOException {
+    public void uponWriteToRemoteDo(Callable<?> c) throws Exception {
         doAnswer(invocation -> {
-            // Still track the received text
             recordText.answer(invocation);
-            // As soon as bytes are received, call the callable and interrupt the test case, as it
-            // may await this event.
             c.call();
             return null;
         }).when(getRemote()).sendBytes(isA(ByteBuffer.class));
+    }
+
+    public static String normalizeLineBreaks(String s) {
+        return s.replaceAll("[\r\n]+", "\n");
     }
 }

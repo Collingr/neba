@@ -16,7 +16,6 @@ import static io.neba.core.util.NodeUtil.getPrimaryType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -86,8 +85,9 @@ public class NodeUtilTest {
         Value[] mixinTypes = new Value[types.length];
 
         for (int i = 0; i < types.length; ++i) {
-            mixinTypes[i] = spy(mock(Value.class));
-            doReturn(types[i]).when(mixinTypes[i]).toString();
+            Value value = mock(Value.class);
+            doReturn(types[i]).when(value).toString();
+            mixinTypes[i] = value;
         }
 
         Property mixinTypesProperty = mock(Property.class);
@@ -107,8 +107,9 @@ public class NodeUtilTest {
     private void withMixinTypes(String... types) throws RepositoryException {
         NodeType[] mixinTypes = new NodeType[types.length];
         for (int i = 0; i < types.length; ++i) {
-            mixinTypes[i] = spy(mock(NodeType.class));
-            doReturn(types[i]).when(mixinTypes[i]).toString();
+            NodeType nodeType = mock(NodeType.class);
+            doReturn(types[i]).when(nodeType).toString();
+            mixinTypes[i] = nodeType;
         }
         when(node.getMixinNodeTypes()).thenReturn(mixinTypes);
     }

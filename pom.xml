@@ -17,6 +17,7 @@
 		<module>api-tld</module>
 		<module>api</module>
 		<module>core</module>
+		<module>logviewer</module>
 		<module>spring</module>
 		<module>delivery-aem</module>
 		<module>delivery-sling</module>
@@ -55,10 +56,20 @@
 	</developers>
 
 	<properties>
-		<spring.version>5.3.34_1</spring.version>
+		<!-- Enforcer: JDK must be >= target (maven.compiler.release) -->
+		<enforcer.java.version>[1.8,)</enforcer.java.version>
+		<logviewer.artifact>io.neba.neba-logviewer-java8</logviewer.artifact>
+		<!-- Jetty: java8/java11=9.4.56 (AEM 6.5), java17/java21=11.0.25 (AEM 6.6). jetty.version=9.4.56 for logviewer websocket (Jetty 11 uses jakarta artifacts). -->
+		<jetty.util.version>9.4.56.v20240826</jetty.util.version>
+		<jetty.util.export.version>9.4.56</jetty.util.export.version>
+		<jetty.version>9.4.56.v20240826</jetty.version>
+		<argLine></argLine>
+		<surefire.addOpens></surefire.addOpens>
+		<spring.version>5.3.39_2</spring.version>
 		<gemini.version>3.0.0.M01</gemini.version>
 		<aopalliance.version>1.0_6</aopalliance.version>
-		<language.level>11</language.level>
+		<language.level>8</language.level>
+		<maven.compiler.release>8</maven.compiler.release>
 		<sling.url>http://localhost:4502/system/console</sling.url>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<jackson.importVersionRange>[2.10,3)</jackson.importVersionRange>
@@ -82,6 +93,99 @@
 	</distributionManagement>
 
 	<profiles>
+		<!-- Use -Pjava8, -Pjava11, -Pjava17, or -Pjava21. Explicit -P wins; only that profile is active. -->
+		<!-- add-opens required for Java 17+ only (CGLib/reflection) -->
+		<profile>
+			<id>java21</id>
+			<properties>
+				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
+				<jetty.util.export.version>9.4.56</jetty.util.export.version>
+				<jetty.version>9.4.56.v20240826</jetty.version>
+				<logviewer.profile>java21</logviewer.profile>
+				<logviewer.artifact>io.neba.neba-logviewer-java11</logviewer.artifact>
+				<enforcer.java.version>[21,)</enforcer.java.version>
+				<surefire.addOpens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED -Djdk.attach.allowAttachSelf=true</surefire.addOpens>
+				<language.level>21</language.level>
+				<maven.compiler.release>21</maven.compiler.release>
+			</properties>
+		</profile>
+		<profile>
+			<id>java17</id>
+			<properties>
+				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
+				<jetty.util.export.version>9.4.56</jetty.util.export.version>
+				<jetty.version>9.4.56.v20240826</jetty.version>
+				<logviewer.profile>java17</logviewer.profile>
+				<logviewer.artifact>io.neba.neba-logviewer-java11</logviewer.artifact>
+				<enforcer.java.version>[17,)</enforcer.java.version>
+				<surefire.addOpens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED -Djdk.attach.allowAttachSelf=true</surefire.addOpens>
+				<language.level>17</language.level>
+				<maven.compiler.release>17</maven.compiler.release>
+			</properties>
+		</profile>
+		<profile>
+			<id>java11</id>
+			<properties>
+				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
+				<jetty.util.export.version>9.4.56</jetty.util.export.version>
+				<jetty.version>9.4.56.v20240826</jetty.version>
+				<logviewer.profile>java11</logviewer.profile>
+				<logviewer.artifact>io.neba.neba-logviewer-java11</logviewer.artifact>
+				<enforcer.java.version>[11,)</enforcer.java.version>
+				<surefire.addOpens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED -Djdk.attach.allowAttachSelf=true</surefire.addOpens>
+				<language.level>11</language.level>
+				<maven.compiler.release>11</maven.compiler.release>
+			</properties>
+		</profile>
+		<!-- Mockito 5 requires Java 11+; use Mockito 4 for Java 8 builds -->
+		<!-- Default when no -P specified. Run with Java 11+: mvn -Pjava11 clean verify -->
+		<profile>
+			<id>java8</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
+				<jetty.util.export.version>9.4.56</jetty.util.export.version>
+				<jetty.version>9.4.56.v20240826</jetty.version>
+				<logviewer.profile>java8</logviewer.profile>
+				<logviewer.artifact>io.neba.neba-logviewer-java8</logviewer.artifact>
+				<enforcer.java.version>[1.8,)</enforcer.java.version>
+				<language.level>8</language.level>
+				<maven.compiler.release>8</maven.compiler.release>
+				<!-- Java 8 does not support add-opens JVM option -->
+				<surefire.addOpens></surefire.addOpens>
+			</properties>
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.mockito</groupId>
+						<artifactId>mockito-core</artifactId>
+						<version>4.11.0</version>
+					</dependency>
+					<dependency>
+						<groupId>net.bytebuddy</groupId>
+						<artifactId>byte-buddy</artifactId>
+						<version>1.12.19</version>
+					</dependency>
+					<dependency>
+						<groupId>org.eclipse.jetty.websocket</groupId>
+						<artifactId>websocket-api</artifactId>
+						<version>9.4.56.v20240826</version>
+					</dependency>
+					<dependency>
+						<groupId>org.eclipse.jetty.websocket</groupId>
+						<artifactId>websocket-servlet</artifactId>
+						<version>9.4.56.v20240826</version>
+					</dependency>
+					<dependency>
+						<groupId>org.eclipse.jetty.websocket</groupId>
+						<artifactId>websocket-server</artifactId>
+						<version>9.4.56.v20240826</version>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+		</profile>
 		<profile>
 			<!-- from http://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/7/oss-parent-7.pom -->
 			<id>release</id>
@@ -127,7 +231,6 @@
 				<version>2.1</version>
 				<scope>provided</scope>
 			</dependency>
-
 			<dependency>
 				<groupId>org.apache.servicemix.bundles</groupId>
 				<artifactId>org.apache.servicemix.bundles.spring-beans</artifactId>
@@ -168,12 +271,56 @@
 				<artifactId>org.apache.servicemix.bundles.spring-expression</artifactId>
 				<version>${spring.version}</version>
 			</dependency>
-
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-lang3</artifactId>
-				<version>3.18.0</version>
+				<version>3.20.0</version>
 				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-util</artifactId>
+				<version>${jetty.util.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-io</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-http</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-server</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-servlet</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty.websocket</groupId>
+				<artifactId>websocket-common</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty.websocket</groupId>
+				<artifactId>websocket-api</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty.websocket</groupId>
+				<artifactId>websocket-server</artifactId>
+				<version>${jetty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty.websocket</groupId>
+				<artifactId>websocket-servlet</artifactId>
+				<version>${jetty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>commons-collections</groupId>
@@ -203,13 +350,13 @@
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
-				<version>1.7.6</version>
+				<version>1.7.36</version>
 				<scope>provided</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-simple</artifactId>
-				<version>1.7.6</version>
+				<version>1.7.36</version>
 				<scope>provided</scope>
 			</dependency>
 
@@ -350,7 +497,7 @@
 			<dependency>
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy</artifactId>
-				<version>1.10.4</version>
+				<version>1.14.18</version>
 			</dependency>
 
 			<dependency>
@@ -383,7 +530,7 @@
 			<dependency>
 				<groupId>org.mockito</groupId>
 				<artifactId>mockito-core</artifactId>
-				<version>3.1.0</version>
+				<version>5.14.2</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
@@ -429,10 +576,9 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.12.1</version>
+					<version>3.13.0</version>
 					<configuration>
-						<source>${language.level}</source>
-						<target>${language.level}</target>
+						<release>${maven.compiler.release}</release>
 					</configuration>
 				</plugin>
 				<plugin>
@@ -480,10 +626,11 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>3.2.5</version>
+					<version>3.5.2</version>
 					<configuration>
 						<parallel>classes</parallel>
 						<threadCount>8</threadCount>
+						<argLine>${argLine} ${surefire.addOpens}</argLine>
 					</configuration>
 				</plugin>
 				<plugin>
@@ -522,7 +669,8 @@
 								<version>[3.3.0,)</version>
 							</requireMavenVersion>
 							<requireJavaVersion>
-								<version>${language.level}</version>
+								<!-- JDK must be >= target (profile sets enforcer.java.version) -->
+								<version>${enforcer.java.version}</version>
 							</requireJavaVersion>
 						</rules>
 					</configuration>
@@ -570,6 +718,25 @@
 			</plugins>
 		</pluginManagement>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-toolchains-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<toolchains>
+						<jdk>
+							<version>${maven.compiler.release}</version>
+						</jdk>
+					</toolchains>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>toolchain</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.sling</groupId>
 				<artifactId>sling-maven-plugin</artifactId>

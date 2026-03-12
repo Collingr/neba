@@ -23,7 +23,6 @@ import io.neba.api.tags.TagLibrary;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -48,8 +47,12 @@ import java.util.Set;
     "io.neba.api.tags.Tag",
     "io.neba.api.tags.TagAttribute"
 })
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class TldProcessor extends AbstractProcessor {
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latest();
+    }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

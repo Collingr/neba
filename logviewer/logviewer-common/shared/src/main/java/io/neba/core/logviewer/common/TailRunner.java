@@ -13,9 +13,8 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  */
-package io.neba.core.logviewer;
+package io.neba.core.logviewer.common;
 
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +23,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 
-import static io.neba.core.logviewer.Tail.Mode.TAIL;
+import static io.neba.core.logviewer.common.Tail.Mode.TAIL;
 import static java.lang.Math.max;
 import static java.lang.Thread.sleep;
 import static java.nio.ByteBuffer.allocate;
@@ -33,38 +32,26 @@ import static java.nio.file.StandardOpenOption.READ;
 import static org.apache.commons.io.IOUtils.closeQuietly;
 
 /**
- * A non-blocking tail implementation allowing to read an arbitrary number of bytes from the end of a file
- * and follow changes to it.
- *
- * @author Olaf Otto
+ * Reusable file tail implementation. Reads from the end of a file and optionally follows changes.
+ * Uses {@link LogOutput} to send data, allowing the same logic to work with Jetty 9 or Jetty 11.
  */
-public class Tail implements Runnable {
-    private final Mode mode;
-
-    public enum Mode {
-        TAIL,
-        FOLLOW
-    }
+public class TailRunner implements Runnable {
 
     private static final int AWAIT_FILE_ROTATION_MILLIS = 1000;
     private static final int TAIL_CHECK_INTERVAL_MILLIS = 500;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final RemoteEndpoint remoteEndpoint;
+    private final LogOutput output;
     private final File file;
     private final long bytesToTail;
+    private final Tail.Mode mode;
 
-    private boolean stopped = false;
+    private volatile boolean stopped = false;
 
-    /**
-     * @param remoteEndpoint must not be <code>null</code>.
-     * @param file must not be <code>null</code>.
-     * @param bytesToTail the number of bytes up to which are immediately read from the file.
-     */
-    Tail(RemoteEndpoint remoteEndpoint, File file, long bytesToTail, Mode mode) {
-        if (remoteEndpoint == null) {
-            throw new IllegalArgumentException("constructor parameter remoteEndpoint must not be null");
+    public TailRunner(LogOutput output, File file, long bytesToTail, Tail.Mode mode) {
+        if (output == null) {
+            throw new IllegalArgumentException("constructor parameter output must not be null");
         }
         if (file == null) {
             throw new IllegalArgumentException("constructor parameter file must not be null");
@@ -72,11 +59,10 @@ public class Tail implements Runnable {
         if (mode == null) {
             throw new IllegalArgumentException("constructor parameter mode must not be null");
         }
-
-        this.mode = mode;
-        this.bytesToTail = bytesToTail;
-        this.remoteEndpoint = remoteEndpoint;
+        this.output = output;
         this.file = file;
+        this.bytesToTail = bytesToTail;
+        this.mode = mode;
     }
 
     @Override
@@ -94,22 +80,19 @@ public class Tail implements Runnable {
             long position = startingFromInByte;
             long totalBytesRead = 0L;
 
-            // Read up to this amount of data from the file at once.
             ByteBuffer readBuffer = allocate(4096);
             while (!this.stopped) {
 
-                // The file might be temporarily gone during rotation. Wait, then decide
-                // whether the file is considered gone permanently or whether a rotation has occurred.
                 if (!this.file.exists()) {
                     sleep(AWAIT_FILE_ROTATION_MILLIS);
                 }
                 if (!this.file.exists()) {
-                    this.remoteEndpoint.sendString("file not found");
+                    this.output.sendString("file not found");
                     return;
                 }
 
                 if (position > this.file.length()) {
-                    this.remoteEndpoint.sendString("file rotated");
+                    this.output.sendString("file rotated");
                     position = 0;
                     closeQuietly(channel);
                     channel = newByteChannel(this.file.toPath(), READ);
@@ -119,10 +102,8 @@ public class Tail implements Runnable {
 
                 if (read == -1) {
                     if (mode == TAIL) {
-                        // EOF, we are done.
                         return;
                     }
-                    // If we are in follow mode, reaching the end of the file might signal a file rotation. Sleep and re-try.
                     sleep(TAIL_CHECK_INTERVAL_MILLIS);
                     continue;
                 }
@@ -131,7 +112,7 @@ public class Tail implements Runnable {
 
                 position = channel.position();
                 readBuffer.flip();
-                this.remoteEndpoint.sendBytes(readBuffer);
+                this.output.sendBytes(readBuffer);
                 readBuffer.clear();
 
                 if (mode == TAIL && totalBytesRead >= this.bytesToTail) {
@@ -149,7 +130,7 @@ public class Tail implements Runnable {
         }
     }
 
-    void stop() {
+    public void stop() {
         this.stopped = true;
     }
 }

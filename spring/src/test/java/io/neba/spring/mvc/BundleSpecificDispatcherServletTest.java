@@ -69,7 +69,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.web.servlet.DispatcherServlet.MULTIPART_RESOLVER_BEAN_NAME;
 
 /**
@@ -512,7 +512,7 @@ public class BundleSpecificDispatcherServletTest {
     }
 
     private void verifyApplicationContextIsNotUsed() {
-        verifyZeroInteractions(this.applicationContext);
+        verifyNoInteractions(this.applicationContext);
     }
 
     private void signalContextRefreshed() {

@@ -8,7 +8,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.jar.JarFile;
 
@@ -27,9 +28,11 @@ public class SpringBundlesTransformerTest {
 
     @Before
     public void setUp() throws Exception {
-        URL sources = getResource("sources");
-        assertThat(sources).isNotNull();
-        File sourceBlueprint = new File(sources.getFile());
+        // Locate sources from project dir (reliable across profiles and classloader setups)
+        Path projectRoot = Paths.get(System.getProperty("user.dir"));
+        Path sourcesPath = projectRoot.resolve("src/test/resources/sources");
+        File sourceBlueprint = sourcesPath.toFile();
+        assertThat(sourceBlueprint).describedAs("Test resource src/test/resources/sources not found").isDirectory();
 
         this.source = createTempDirectory("neba-").toFile();
         this.target = createTempDirectory("neba-").toFile();
@@ -39,8 +42,12 @@ public class SpringBundlesTransformerTest {
 
     @After
     public void tearDown() throws Exception {
-        deleteDirectory(this.source);
-        deleteDirectory(this.target);
+        if (this.source != null) {
+            deleteDirectory(this.source);
+        }
+        if (this.target != null) {
+            deleteDirectory(this.target);
+        }
     }
 
     @Test
@@ -107,9 +114,5 @@ public class SpringBundlesTransformerTest {
 
     private void transformUnpackedArtifacts() throws IOException {
         new SpringBundlesTransformer(source, target, "[2.9,3)").run();
-    }
-
-    private URL getResource(String path) {
-        return getClass().getClassLoader().getResource(path);
     }
 }

@@ -15,28 +15,11 @@
  */
 package io.neba.core.logviewer;
 
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
+import javax.servlet.Servlet;
 
 /**
- * Bridges non-websocket servlets with websockets. Handles all requests using the {@link TailSocket}.
- *
- * @author Olaf Otto
+ * Contract for the log tail WebSocket servlet. Implemented by logviewer-java8 (AEM 6.5) and
+ * logviewer-java11 (AEM 6.5 / Java 11).
  */
-@Component(service = TailServlet.class)
-public class TailServlet extends WebSocketServlet {
-    private static final long serialVersionUID = 1326193543519605309L;
-
-    @Reference
-    private LogFiles logFiles;
-
-    @Override
-    public void configure(WebSocketServletFactory factory) {
-        factory.getPolicy().setIdleTimeout(SECONDS.toMillis(30));
-        factory.setCreator((servletUpgradeRequest, servletUpgradeResponse) -> new TailSocket(logFiles));
-    }
+public interface TailServlet extends Servlet {
 }

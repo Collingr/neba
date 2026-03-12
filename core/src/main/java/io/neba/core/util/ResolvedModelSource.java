@@ -16,7 +16,7 @@
 
 package io.neba.core.util;
 
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import java.util.Objects;
 
 /**
  * Represents the result of a lookup of a {@link io.neba.api.annotations.ResourceModel} for
@@ -45,7 +45,7 @@ public class ResolvedModelSource<T> {
 
         this.source = source;
         this.resourceType = resourceType;
-        this.hashCode = new HashCodeBuilder().append(source).append(resourceType).toHashCode();
+        this.hashCode = Objects.hash(source, resourceType);
     }
 
     public OsgiModelSource<T> getSource() {

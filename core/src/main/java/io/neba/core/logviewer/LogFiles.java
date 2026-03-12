@@ -103,7 +103,7 @@ public class LogFiles {
         return logFile.getCanonicalFile();
     }
 
-    Collection<File> resolveLogFiles() throws IOException {
+    public Collection<File> resolveLogFiles() throws IOException {
         File logDir = getLogfileDirectory();
         Collection<File> logFiles = new TreeSet<>((o1, o2) -> o1.getPath().compareToIgnoreCase(o2.getPath()));
 

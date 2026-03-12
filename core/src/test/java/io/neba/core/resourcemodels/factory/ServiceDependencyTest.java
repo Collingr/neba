@@ -275,14 +275,18 @@ public class ServiceDependencyTest {
 
     /**
      * Annotation.toString() format differs between Java versions: Java 8 omits quotes for string
-     * values, Java 11+ includes them.
+     * values, Java 11 uses value="...", Java 17+ uses shorthand ("...").
      */
     private static String expectedFilterValueFormat() {
         String version = System.getProperty("java.version", "");
         if (version.startsWith("1.8") || version.startsWith("8.")) {
             return "value=(property=name)";
         }
-        return "value=\"(property=name)\"";
+        if (version.startsWith("11.") || version.startsWith("1.11")) {
+            return "value=\"(property=name)\"";
+        }
+        // Java 17+ and 21 omit "value=" for single-attribute annotations
+        return "\"(property=name)\"";
     }
 
     private static class ServiceInterface {
