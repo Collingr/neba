@@ -43,7 +43,7 @@ NEBA uses a [Maven](https://maven.apache.org/) based build. Invoke
 
     mvn clean install
     
-in the project's root directory to build and install NEBA. **Always build from the project root**—building the `delivery-aem` module in isolation will fail because it depends on the logviewer artifact, which must be built first. If you see "io.neba.neba-logviewer-java8 was not found" (e.g. from a cached resolution failure), run `mvn -U -Pjava8 clean install` from the root to force update and rebuild.
+in the project's root directory to build and install NEBA. **Always build from the project root**—building the `delivery-aem` module in isolation will fail because it depends on the logviewer artifact, which must be built first.
 
 We are using [git flow](https://nvie.com/posts/a-successful-git-branching-model/),
 so you might want to do so on the "develop" branch.
@@ -56,16 +56,16 @@ NEBA supports both AEM 6.5 and 6.6 from a single codebase. Use the appropriate M
 
 | Profile | Java | AEM | Logviewer | Output |
 |---------|------|-----|-----------|--------|
-| `java8` (default) | 8 | 6.5 | logviewer-java8 | `neba-delivery-aem-*-spring` |
-| `java11` | 11 | 6.5 | logviewer-java11 | `neba-delivery-aem-*-spring` |
-| `java17` | 17 | 6.6 | logviewer-java11 | `neba-delivery-aem-*-spring` |
-| `java21` | 21 | 6.6 | logviewer-java11 | `neba-delivery-aem-*-spring` |
+| `java8` (default) | 8 | 6.5 | logviewer | `neba-delivery-aem-*-spring` |
+| `java11` | 11 | 6.5 | logviewer | `neba-delivery-aem-*-spring` |
+| `java17` | 17 | 6.6 | logviewer | `neba-delivery-aem-*-spring` |
+| `java21` | 21 | 6.6 | logviewer | `neba-delivery-aem-*-spring` |
 
 **Examples:**
 - AEM 6.5 on Java 11: `mvn -Pjava11 clean install`
 - AEM 6.6 on Java 17: `mvn -Pjava17 clean install`
 
-The same content package works on both AEM versions. The delivery embeds a Jetty 9.4 stack for the logviewer WebSocket (AEM does not export these packages). On AEM 6.6, `jetty-util-osgi` is started at level 12 so it exports `org.eclipse.jetty.util.annotation` before the other Jetty bundles resolve.
+The same content package works on both AEM versions. **Logviewer** is included by default; enable it via OSGi Config Admin (PID `io.neba.logviewer`, set `enabled=true`). Use `mvn -Pno-logviewer package` to exclude it from the delivery package.
 
 Releasing NEBA
 --------------------

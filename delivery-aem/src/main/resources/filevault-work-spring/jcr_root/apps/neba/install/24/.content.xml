@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0"
+          jcr:primaryType="sling:OrderedFolder">
+    <!--
+    NEBA core (ModelRegistry) at 24 so it starts before front end (typically 25+).
+    -->
+    <io.neba.neba-api-${project.version}.jar />
+    <io.neba.neba-core-${project.version}.jar />
+    <io.neba.neba-logviewer-${project.version}.jar />
+    <io.neba.neba-spring-${project.version}.jar />
+</jcr:root>

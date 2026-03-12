@@ -63,8 +63,7 @@ $(function () {
         PATTERN_SECTION_START = /\*(TRACE|DEBUG|INFO|WARN|ERROR)\*/,
         PATTERN_REQUEST_START = /^(.* )\[(\d+)]( -> (GET|POST|PUT|HEAD|DELETE) .*)$/,
         PATTERN_REQUEST_END = /^(.* )\[(\d+)]( <- \d+ .*)$/,
-        textDecoder = new TextDecoder("UTF-8"),
-        tailSocket,
+        tailEventSource,
         tailDomNode = document.getElementById("tail"),
         $logfile = $("#logfile"),
         $amount = $("#amount"),
@@ -363,20 +362,19 @@ $(function () {
     adjustViewsToScreenHeight();
     restrictCopyAllToLogView();
 
+    initUiBehavior();
     try {
-        tailSocket = createSocket();
-        tailSocket.onopen = function () {
-            initUiBehavior();
-            updateFromRequestParameters();
+        updateFromRequestParameters();
+        if (!tailEventSource && $logfile.val() && $amount.val()) {
+            tailSelectedLogFile();
         }
     } catch (e) {
         console && console.log(e);
-        Tail.info("Unable to open server connection: " + e.message)
+        Tail.info("Unable to open server connection: " + e.message);
     }
 
     /**
-     * Binds the log viewer behavior to the UI elements (such as buttons) once
-     * a websocket connection was successfully established.
+     * Binds the log viewer behavior to the UI elements (such as buttons).
      */
     function initUiBehavior() {
         $logfile.change(function () {
@@ -425,58 +423,73 @@ $(function () {
     }
 
     /**
-     * Creates a new websocket and initializes message and error handling.
-     *
-     * @returns {WebSocket}
+     * Builds the SSE tail URL with query params.
      */
-    function createSocket() {
-        var socket = new WebSocket((window.location.protocol === "https:" ? "wss" : "ws") + "://" + window.location.host + "/system/console/logviewer/tail");
+    function buildTailUrl(mode) {
+        var file = $logfile.val(),
+            amount = parseFloat($amount.val()) || 0.1;
+        if (!file || !amount) return null;
+        var base = "/neba/logviewer/tail";
+        return base + "?file=" + encodeURIComponent(file) + "&amount=" + amount + "&mode=" + (mode || "tail");
+    }
 
-        socket.onclose = function () {
+    /**
+     * Closes the current SSE connection if open.
+     */
+    function closeEventSource() {
+        if (tailEventSource) {
+            tailEventSource.onerror = null;
+            tailEventSource.onmessage = null;
+            tailEventSource.close();
+            tailEventSource = null;
+        }
+    }
+
+    /**
+     * Creates a new EventSource for SSE tail streaming.
+     *
+     * @param {string} mode - "tail" or "follow"
+     * @returns {EventSource|null}
+     */
+    function createEventSource(mode) {
+        closeEventSource();
+        var url = buildTailUrl(mode);
+        if (!url) return null;
+        var evtSource = new EventSource(url);
+
+        evtSource.onmessage = function (event) {
+            Tail.add(event.data);
+        };
+
+        evtSource.addEventListener("info", function (event) {
+            Tail.info(event.data);
+        });
+
+        evtSource.onerror = function () {
+            if (evtSource.readyState === EventSource.CLOSED) {
+                return;
+            }
             Tail.info("Connection to server lost. Trying to reconnect ...");
+            evtSource.close();
+            tailEventSource = null;
             window.setTimeout(function () {
-                try {
-                    tailSocket = createSocket();
-                    tailSocket.onopen = function() {
-                        Tail.clear();
-                        tailSelectedLogFile();
-                    };
-                } catch (e) {
-                    console && console.log(e);
-                    Tail.info("Unable to open server connection: " + e.message);
+                if (Tail.followMode) {
+                    followSelectedLogFile();
+                } else {
+                    tailSelectedLogFile();
                 }
             }, 2000);
         };
 
-        socket.onmessage = function (event) {
-            var data = event.data;
-            if (data instanceof ArrayBuffer) {
-                Tail.add(textDecoder.decode(event.data));
-            } else if (typeof data === 'string') {
-                if ("pong" === data) {
-                    return;
-                }
-                Tail.info(data);
-            } else if (console) {
-                console.error("Unsupported data format of websocket response " + data + ".")
-            }
-        };
-
-        socket.binaryType = "arraybuffer";
-
-        window.setInterval(function () {
-            socket.readyState === WebSocket.OPEN &&
-            socket.send("ping")
-        }, 1000);
-
         window.onunload = function () {
-            if (socket) {
-                socket.onclose = undefined;
-                socket.close();
+            if (tailEventSource) {
+                tailEventSource.onerror = null;
+                tailEventSource.close();
             }
         };
 
-        return socket;
+        tailEventSource = evtSource;
+        return evtSource;
     }
 
     /**
@@ -537,35 +550,27 @@ $(function () {
      * Starts tailing the selected log file.
      */
     function tailSelectedLogFile() {
-        var file = $logfile.val(),
-            amount = $amount.val();
-
-        if (!(file && amount)) {
+        if (!($logfile.val() && $amount.val())) {
             return;
         }
-
-        tailSocket.send("tail:" + parseFloat(amount) + 'mb:' + file);
+        createEventSource("tail");
     }
 
     /**
      * Starts following the selected log file.
      */
     function followSelectedLogFile() {
-        var file = $logfile.val(),
-            amount = $amount.val();
-
-        if (!(file && amount)) {
+        if (!($logfile.val() && $amount.val())) {
             return;
         }
-
-        tailSocket.send("follow:" + parseFloat(amount) + 'mb:' + file);
+        createEventSource("follow");
     }
 
     /**
      * Stops following any logfile.
      */
     function stopFollowing() {
-        tailSocket.send("stop");
+        closeEventSource();
     }
 
     function adjustViewsToScreenHeight() {

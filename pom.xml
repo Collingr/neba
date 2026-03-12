@@ -58,11 +58,7 @@
 	<properties>
 		<!-- Enforcer: JDK must be >= target (maven.compiler.release) -->
 		<enforcer.java.version>[1.8,)</enforcer.java.version>
-		<logviewer.artifact>io.neba.neba-logviewer-java8</logviewer.artifact>
-		<!-- Jetty: java8/java11=9.4.56 (AEM 6.5), java17/java21=11.0.25 (AEM 6.6). jetty.version=9.4.56 for logviewer websocket (Jetty 11 uses jakarta artifacts). -->
-		<jetty.util.version>9.4.56.v20240826</jetty.util.version>
-		<jetty.util.export.version>9.4.56</jetty.util.export.version>
-		<jetty.version>9.4.56.v20240826</jetty.version>
+		<logviewer.artifact>io.neba.neba-logviewer</logviewer.artifact>
 		<argLine></argLine>
 		<surefire.addOpens></surefire.addOpens>
 		<spring.version>5.3.39_2</spring.version>
@@ -98,11 +94,8 @@
 		<profile>
 			<id>java21</id>
 			<properties>
-				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
-				<jetty.util.export.version>9.4.56</jetty.util.export.version>
-				<jetty.version>9.4.56.v20240826</jetty.version>
 				<logviewer.profile>java21</logviewer.profile>
-				<logviewer.artifact>io.neba.neba-logviewer-java11</logviewer.artifact>
+				<logviewer.artifact>io.neba.neba-logviewer</logviewer.artifact>
 				<enforcer.java.version>[21,)</enforcer.java.version>
 				<surefire.addOpens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED -Djdk.attach.allowAttachSelf=true</surefire.addOpens>
 				<language.level>21</language.level>
@@ -112,11 +105,8 @@
 		<profile>
 			<id>java17</id>
 			<properties>
-				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
-				<jetty.util.export.version>9.4.56</jetty.util.export.version>
-				<jetty.version>9.4.56.v20240826</jetty.version>
 				<logviewer.profile>java17</logviewer.profile>
-				<logviewer.artifact>io.neba.neba-logviewer-java11</logviewer.artifact>
+				<logviewer.artifact>io.neba.neba-logviewer</logviewer.artifact>
 				<enforcer.java.version>[17,)</enforcer.java.version>
 				<surefire.addOpens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED -Djdk.attach.allowAttachSelf=true</surefire.addOpens>
 				<language.level>17</language.level>
@@ -126,11 +116,8 @@
 		<profile>
 			<id>java11</id>
 			<properties>
-				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
-				<jetty.util.export.version>9.4.56</jetty.util.export.version>
-				<jetty.version>9.4.56.v20240826</jetty.version>
 				<logviewer.profile>java11</logviewer.profile>
-				<logviewer.artifact>io.neba.neba-logviewer-java11</logviewer.artifact>
+				<logviewer.artifact>io.neba.neba-logviewer</logviewer.artifact>
 				<enforcer.java.version>[11,)</enforcer.java.version>
 				<surefire.addOpens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED -Djdk.attach.allowAttachSelf=true</surefire.addOpens>
 				<language.level>11</language.level>
@@ -145,11 +132,8 @@
 				<activeByDefault>true</activeByDefault>
 			</activation>
 			<properties>
-				<jetty.util.version>9.4.56.v20240826</jetty.util.version>
-				<jetty.util.export.version>9.4.56</jetty.util.export.version>
-				<jetty.version>9.4.56.v20240826</jetty.version>
 				<logviewer.profile>java8</logviewer.profile>
-				<logviewer.artifact>io.neba.neba-logviewer-java8</logviewer.artifact>
+				<logviewer.artifact>io.neba.neba-logviewer</logviewer.artifact>
 				<enforcer.java.version>[1.8,)</enforcer.java.version>
 				<language.level>8</language.level>
 				<maven.compiler.release>8</maven.compiler.release>
@@ -168,23 +152,20 @@
 						<artifactId>byte-buddy</artifactId>
 						<version>1.12.19</version>
 					</dependency>
-					<dependency>
-						<groupId>org.eclipse.jetty.websocket</groupId>
-						<artifactId>websocket-api</artifactId>
-						<version>9.4.56.v20240826</version>
-					</dependency>
-					<dependency>
-						<groupId>org.eclipse.jetty.websocket</groupId>
-						<artifactId>websocket-servlet</artifactId>
-						<version>9.4.56.v20240826</version>
-					</dependency>
-					<dependency>
-						<groupId>org.eclipse.jetty.websocket</groupId>
-						<artifactId>websocket-server</artifactId>
-						<version>9.4.56.v20240826</version>
-					</dependency>
 				</dependencies>
 			</dependencyManagement>
+		</profile>
+		<profile>
+			<id>compile</id>
+			<modules>
+				<module>api-tld</module>
+				<module>api</module>
+				<module>core</module>
+				<module>logviewer</module>
+				<module>spring</module>
+				<module>delivery-aem</module>
+				<module>delivery-sling</module>
+			</modules>
 		</profile>
 		<profile>
 			<!-- from http://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/7/oss-parent-7.pom -->
@@ -276,51 +257,6 @@
 				<artifactId>commons-lang3</artifactId>
 				<version>3.20.0</version>
 				<scope>provided</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-util</artifactId>
-				<version>${jetty.util.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-io</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-http</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-server</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-servlet</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty.websocket</groupId>
-				<artifactId>websocket-common</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty.websocket</groupId>
-				<artifactId>websocket-api</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty.websocket</groupId>
-				<artifactId>websocket-server</artifactId>
-				<version>${jetty.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty.websocket</groupId>
-				<artifactId>websocket-servlet</artifactId>
-				<version>${jetty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>commons-collections</groupId>

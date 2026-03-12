@@ -20,12 +20,8 @@ import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.felix.webconsole.AbstractWebConsolePlugin;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -39,12 +35,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static io.neba.core.util.ZipFileUtil.toZipFileEntryName;
-import static java.lang.Class.forName;
 import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.currentThread;
 import static org.apache.commons.io.IOUtils.closeQuietly;
 import static org.apache.commons.io.IOUtils.copy;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.startsWith;
 import static org.apache.commons.lang3.StringUtils.substringAfter;
@@ -67,49 +60,16 @@ import static org.osgi.framework.Constants.SERVICE_VENDOR;
 )
 public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
     static final String LABEL = "logviewer";
+
     private static final long serialVersionUID = 5963934292569659695L;
     private static final String RESOURCES_ROOT = "/META-INF/consoleplugin/logviewer";
-    private static final String DECORATED_OBJECT_FACTORY = "org.eclipse.jetty.util.DecoratedObjectFactory";
     private static final FastDateFormat DATETIME_FORMAT = FastDateFormat.getInstance("dd.MM.yyyy HH:mm:ss.S", TimeZone.getDefault());
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
-
-    private boolean isManagingDecoratedObjectFactory = false;
-
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    private TailServlet tailServlet;
 
     @Reference
     private LogFiles logFiles;
 
-    @Override
-    public void init() throws ServletException {
-        super.init();
-        if (this.tailServlet == null) {
-            return;
-        }
-        final ClassLoader ccl = currentThread().getContextClassLoader();
-        try {
-            injectDecoratorObjectFactoryIntoServletContext();
-            currentThread().setContextClassLoader(getClass().getClassLoader());
-            this.tailServlet.init(getServletConfig());
-        } catch (Throwable t) {
-            this.logger.error("Unable to initialize the tail servlet - the log viewer will not be available", t);
-            // We have to catch and re-throw here, as Sling tends not to log exceptions thrown in a servlet's init() method.
-            throw new ServletException("Unable to initialize the tail servlet - the log viewer will not be available", t);
-        } finally {
-            currentThread().setContextClassLoader(ccl);
-        }
-    }
-
-    @Override
-    public void destroy() {
-        super.destroy();
-        removeDecoratorObjectFactoryFromServletContext();
-        if (this.tailServlet != null) {
-            this.tailServlet.destroy();
-        }
-    }
+    @Reference
+    private LogviewerEnabled logviewerEnabled;
 
     @SuppressWarnings("unused")
     public String getCategory() {
@@ -142,15 +102,6 @@ public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         String suffix = substringAfter(req.getRequestURI(), req.getServletPath() + "/" + getLabel());
 
-        if (!isBlank(suffix) && suffix.startsWith("/tail")) {
-            if (this.tailServlet != null) {
-                this.tailServlet.service(req, res);
-            } else {
-                res.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Log tail service not available (no Jetty WebSocket implementation)");
-            }
-            return;
-        }
-
         if ("/download".equals(suffix)) {
             download(res, req);
             return;
@@ -177,35 +128,6 @@ public class LogfileViewerConsolePlugin extends AbstractWebConsolePlugin {
         res.getWriter().write('{');
         res.getWriter().write("\"time\": \"" + DATETIME_FORMAT.format(currentTimeMillis()) + " (UTC " + (utcOffsetInHours < 0 ? "-" : "+") + " " + utcOffsetInHours + ")\"");
         res.getWriter().write('}');
-    }
-
-    /**
-     * The {@link #DECORATED_OBJECT_FACTORY} is a dependency for using websockets and may not be registered,
-     * depending on the jetty runtime setup. If it is not registered, this method loads and registers it.
-     */
-    private void injectDecoratorObjectFactoryIntoServletContext() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
-        ServletContext servletContext = getServletContext();
-        if (servletContext.getAttribute(DECORATED_OBJECT_FACTORY) != null || !isDecoratedObjectFactoryAvailable()) {
-            return;
-        }
-
-        servletContext.setAttribute(DECORATED_OBJECT_FACTORY, forName(DECORATED_OBJECT_FACTORY).newInstance());
-        this.isManagingDecoratedObjectFactory = true;
-    }
-
-    private boolean isDecoratedObjectFactoryAvailable() {
-        try {
-            forName(DECORATED_OBJECT_FACTORY, false, getClass().getClassLoader());
-            return true;
-        } catch (Throwable ex) {
-            return false;
-        }
-    }
-
-    private void removeDecoratorObjectFactoryFromServletContext() {
-        if (this.isManagingDecoratedObjectFactory) {
-            getServletContext().removeAttribute(DECORATED_OBJECT_FACTORY);
-        }
     }
 
     private void writeHead(HttpServletRequest req, HttpServletResponse res) throws IOException {

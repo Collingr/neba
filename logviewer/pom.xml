@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>io.neba.neba-logviewer</artifactId>
     <name>NEBA logviewer</name>
-    <packaging>pom</packaging>
-    <description>Logviewer modules: common, java8, java11, and jetty-util-osgi. Jetty discrimination (9.4.54 for AEM 6.5/6.6, 11.x when logviewer-jakarta exists) is defined by root profiles.</description>
+    <packaging>bundle</packaging>
+    <description>Log tailing via SSE and OSGi Http Whiteboard.</description>
 
     <parent>
         <groupId>io.neba</groupId>
@@ -13,8 +13,86 @@
         <version>5.2.4-SNAPSHOT</version>
     </parent>
 
-    <modules>
-        <module>logviewer-common</module>
-        <module>jetty-util-osgi</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>io.neba</groupId>
+            <artifactId>io.neba.neba-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.component.annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.metatype.annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+        </dependency>
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.compendium</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <configuration>
+                    <instructions>
+                        <Bundle-Name>NEBA logviewer</Bundle-Name>
+                        <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+                        <Import-Package>
+                            javax.servlet.*;version="[2.6,5]",
+                            *
+                        </Import-Package>
+                        <Private-Package>io.neba.core.logviewer.common,io.neba.core.logviewer.whiteboard</Private-Package>
+                        <Export-Package />
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

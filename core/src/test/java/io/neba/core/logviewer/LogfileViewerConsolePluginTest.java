@@ -16,8 +16,6 @@
 
 package io.neba.core.logviewer;
 
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.util.DecoratedObjectFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,9 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
-import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -39,28 +35,19 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static io.neba.core.util.ReflectionUtil.findField;
 import static io.neba.core.util.ZipFileUtil.toZipFileEntryName;
 import static org.apache.commons.io.FileUtils.listFiles;
-import static org.apache.commons.io.IOUtils.toByteArray;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -78,11 +65,9 @@ public class LogfileViewerConsolePluginTest {
     @Mock
     private ServletConfig config;
     @Mock
-    private ContextHandler.Context context;
-    @Mock
     private LogFiles logFiles;
     @Mock
-    private TailServlet tailServlet;
+    private LogviewerEnabled logviewerEnabled;
 
     private File testLogfileDirectory;
     private StringWriter internalWriter;
@@ -137,8 +122,6 @@ public class LogfileViewerConsolePluginTest {
                 .when(this.outputStream)
                 .write(isA(byte[].class), anyInt(), anyInt());
 
-        when(this.config.getServletContext()).thenReturn(this.context);
-
         when(this.logFiles.resolveLogFiles()).thenReturn(availableLogFiles);
     }
 
@@ -184,142 +167,10 @@ public class LogfileViewerConsolePluginTest {
     }
 
     @Test
-    public void testDestroy() {
-        destroy();
-        verifyTailServletIsDestroyed();
-    }
-
-    @Test(expected = ServletException.class)
-    public void testRuntimeExceptionsDuringTailServletInitializationAreConvertedToServletException() throws Exception {
-        doThrow(new RuntimeException("THIS IS AN EXPECTED TEST EXCEPTION")).when(this.tailServlet).init(any());
-        init();
-    }
-
-    @Test
-    public void testDelegationOfTailRequestsToTailServlet() throws Exception {
-        withRequestPath("/system/console/logviewer/tail");
-        doGet();
-        verifyRequestIsDelegatedToTailServlet();
-    }
-
-    @Test
-    public void testLogViewerProvidesDecoratedObjectFactoryAsServletContextAttribute() throws Exception {
-        init();
-        verifyDecoratedObjectInstanceIsInjectedIntoServletContext();
-
-        destroy();
-        verifyDecoratorObjectFactoryIsRemovedFromServletContext();
-    }
-
-    @Test
-    public void testLogViewerDoesNotOverrideExistingDecoratorObjectFactory() throws Exception {
-        withExistingDecoratorObjectFactory();
-
-        init();
-        verifyDecoratorObjectFactoryIsNotInjectedIntoServletContext();
-
-        destroy();
-        verifyDecoratorObjectFactoryIsNotRemovedFromServletContext();
-    }
-
-    @Test
     public void testServerTimeRetrieval() throws ServletException, IOException {
         withRequestPath("/system/console/logviewer/serverTime");
         doGet();
         assertResponseMatches("\\{\"time\": \"[0-9]{1,2}.[0-9]{1,2}.[0-9]{4} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}.[0-9]+ \\(UTC \\+ [0-9]+\\)\"\\}");
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    public void testLogViewerToleratesMissingDecoratedObjectFactoryFactory() throws Exception {
-        ClassLoader classLoaderWithoutDecoratedObjectFactory = new ClassLoader(getClass().getClassLoader()) {
-            @Override
-            public Class<?> loadClass(String name) throws ClassNotFoundException {
-                if (DecoratedObjectFactory.class.getName().equals(name)) {
-                    // This optional dependency is not present on the class path in this test scenario.
-                    throw new ClassNotFoundException("THIS IS AN EXPECTED TEST EXCEPTION. The presence of " + DecoratedObjectFactory.class.getName() + " is optional.");
-                }
-                if (LogfileViewerConsolePlugin.class.getName().equals(name)) {
-                    // Define the test subject's class in this class loader, thus its dependencies -
-                    // such as the DecoratedObjectFactory - are also loaded via this class loader.
-                    try {
-                        byte[] classFileData = toByteArray(getResourceAsStream(name.replace('.', '/').concat(".class")));
-                        return defineClass(name, classFileData, 0, classFileData.length);
-                    } catch (IOException e) {
-                        throw new ClassNotFoundException("Unable to load " + name + ".", e);
-                    }
-                }
-
-                return super.loadClass(name);
-            }
-        };
-
-        Class<? extends Servlet> type = (Class<? extends Servlet>) classLoaderWithoutDecoratedObjectFactory.loadClass(LogfileViewerConsolePlugin.class.getName());
-        Servlet logViewerInstance = type.newInstance();
-
-        ServletConfig config = mock(ServletConfig.class);
-        ServletContext context = mock(ServletContext.class);
-        doReturn(context).when(config).getServletContext();
-        injectTailServlet(logViewerInstance);
-        invokeInit(logViewerInstance, config);
-        invokeDestroy(logViewerInstance);
-
-        verify(context, never()).setAttribute(any(), any());
-        verify(context, never()).removeAttribute(any());
-    }
-
-    private void invokeInit(Servlet servlet, ServletConfig config) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        Method method = servlet.getClass().getMethod("init", ServletConfig.class);
-        method.setAccessible(true);
-        method.invoke(servlet, config);
-    }
-
-    private void invokeDestroy(Servlet servlet) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        Method method = servlet.getClass().getMethod("destroy");
-        method.setAccessible(true);
-        method.invoke(servlet);
-    }
-
-    private void injectTailServlet(Object o) throws IllegalAccessException {
-        Field field = findField(o.getClass(), "tailServlet");
-        field.setAccessible(true);
-        field.set(o, this.tailServlet);
-    }
-
-    private void verifyDecoratorObjectFactoryIsNotRemovedFromServletContext() {
-        verify(this.context, never()).removeAttribute(any());
-    }
-
-    private void verifyDecoratorObjectFactoryIsNotInjectedIntoServletContext() {
-        verify(this.context, never()).setAttribute(any(), any());
-    }
-
-    private void withExistingDecoratorObjectFactory() {
-        doReturn(mock(DecoratedObjectFactory.class)).when(this.context).getAttribute(DecoratedObjectFactory.class.getName());
-    }
-
-    private void verifyDecoratorObjectFactoryIsRemovedFromServletContext() {
-        verify(this.context).removeAttribute(DecoratedObjectFactory.class.getName());
-    }
-
-    private void verifyDecoratedObjectInstanceIsInjectedIntoServletContext() {
-        verify(this.context).setAttribute(eq(DecoratedObjectFactory.class.getName()), isA(DecoratedObjectFactory.class));
-    }
-
-    private void verifyRequestIsDelegatedToTailServlet() throws ServletException, IOException {
-        verify(this.tailServlet).service(this.request, this.response);
-    }
-
-    private void verifyTailServletIsDestroyed() {
-        verify(this.tailServlet).destroy();
-    }
-
-    private void init() throws ServletException {
-        this.testee.init(this.config);
-    }
-
-    private void destroy() {
-        this.testee.destroy();
     }
 
     private void verifyLogFilesAreSendAs(String filename) {

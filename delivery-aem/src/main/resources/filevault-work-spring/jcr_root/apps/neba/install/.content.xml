@@ -6,8 +6,9 @@
     as supported by the Sling JCR installer. As the folders names are numeric, they must be escaped in the
     XML representation.
      -->
-    <_x0031_6 />
-    <_x0031_7 />
-    <_x0031_8 />
-    <_x0031_9 />
+    <_x0032_0 />
+    <_x0032_1 />
+    <_x0032_2 />
+    <_x0032_3 />
+    <_x0032_4 />
 </jcr:root>
