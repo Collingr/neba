@@ -104,10 +104,11 @@ public class ServiceDependencyTest {
         try {
             resolveService();
         } catch (ModelInstantiationException e) {
-            assertThat(e.getMessage()).startsWith(
-                    "Unable to resolve the service dependency " +
-                            "ServiceDependency{serviceType=class io.neba.core.resourcemodels.factory.ServiceDependencyTest$ServiceInterface, filter=@io.neba.api.annotations.Filter(value=(property=name))}, " +
-                            "got more than one matching service instance:");
+            String expectedPrefix = "Unable to resolve the service dependency " +
+                    "ServiceDependency{serviceType=class io.neba.core.resourcemodels.factory.ServiceDependencyTest$ServiceInterface, filter=@io.neba.api.annotations.Filter(" +
+                    expectedFilterValueFormat() + ")}, " +
+                    "got more than one matching service instance:";
+            assertThat(e.getMessage()).startsWith(expectedPrefix);
             return;
         }
         fail("There are more that two service instances available for injection, but only one is expected, thus instantiating the model must fail.");
@@ -270,6 +271,18 @@ public class ServiceDependencyTest {
 
     private void withDependencyTo(Type serviceType) {
         this.serviceType = serviceType;
+    }
+
+    /**
+     * Annotation.toString() format differs between Java versions: Java 8 omits quotes for string
+     * values, Java 11+ includes them.
+     */
+    private static String expectedFilterValueFormat() {
+        String version = System.getProperty("java.version", "");
+        if (version.startsWith("1.8") || version.startsWith("8.")) {
+            return "value=(property=name)";
+        }
+        return "value=\"(property=name)\"";
     }
 
     private static class ServiceInterface {
